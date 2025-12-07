@@ -42,7 +42,15 @@ async def async_setup_platform(
     api = ManchesterCouncilApi(discovery_info.get(CONF_POSTCODE), discovery_info.get(CONF_ADDRESS))
     coordinator = HouseholdBinCoordinator(hass, api)
 
-    await coordinator.async_config_entry_first_refresh()
+    # Do an initial refresh
+    try:
+        await coordinator.async_refresh()
+    except Exception as err:
+        # Initial fetch failed
+        raise PlatformNotReady(f"Error fetching Manchester bin data: {err}") from err
+
+    if not coordinator.last_update_success or not coordinator.data:
+        raise PlatformNotReady("Manchester bin data not available yet")
 
     async_add_entities(
       BinSensor(coordinator, idx) for idx, ent in enumerate(coordinator.data)
